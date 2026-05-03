@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	response "github.com/driftappdev/libpackage/contracts/response"
+	response "github.com/PlatformCore/engine-core/core/contracts/response"
 
 	"dift_backend_driver/driver-history-service/internal/service"
 )

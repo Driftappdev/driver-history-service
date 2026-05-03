@@ -1,7 +1,10 @@
 package route
 
 import (
+	"encoding/json"
 	"net/http"
+	"os"
+	"strings"
 
 	"dift_backend_driver/driver-history-service/internal/handler"
 )
@@ -13,4 +16,30 @@ func Register(mux *http.ServeMux, h *handler.HistoryHandler) {
 	})
 	mux.HandleFunc("/api/v1/driver/earnings", h.GetEarnings)
 	mux.HandleFunc("/api/v1/driver/history", h.GetTripHistory)
+	mux.HandleFunc("/internal/admin/control", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		secret := strings.TrimSpace(os.Getenv("ADMIN_CONTROL_SHARED_SECRET"))
+		if secret != "" && r.Header.Get("X-Admin-Secret") != secret {
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "unauthorized"})
+			return
+		}
+		var req map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "invalid_json"})
+			return
+		}
+		action, _ := req["action"].(string)
+		if strings.TrimSpace(action) == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "action_required"})
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(map[string]any{"accepted": true, "service": "driver-history-service", "action": action})
+	})
 }
